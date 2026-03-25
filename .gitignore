@@ -15,3 +15,4 @@ env/
 .DS_Store
 Thumbs.db
 .agents/
+database/postgres_data/
