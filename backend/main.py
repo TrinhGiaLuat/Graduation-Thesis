@@ -2,30 +2,54 @@
 Module main.py
 --------------
 Điểm vào (Entry Point) của ứng dụng Máy chủ FastAPI.
-Phụ trách công tác khởi tạo Application, khai báo CORS middleware và thiết lập các API endpoint cơ sở (kiểm tra sức khoẻ hệ thống).
+Phụ trách công tác khởi tạo Application, khai báo CORS middleware, khởi chạy Database Schema theo Lifecycle và thiết lập API tĩnh.
 """
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
-# Import module kết nối database cùng cơ chế Dependency Injection
-from database import get_db
+# Import engine từ cơ cấu Database
+from database import get_db, engine
+# Import các Models nhằm đăng ký ORM Declarative Entity metadata vào luồng kiểm tra
+import models
 
-# Thiết lập hệ thống logging trung tâm
+# Cấu hình kiến trúc ghi log nhật ký hệ thống
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("api_main")
 
-# Khởi tạo thể hiện chính của ứng dụng FastAPI
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Quản lý vòng đời hoạt động của ứng dụng FastAPI đồng bộ CSDL thời gian thực.
+    Tiến hành cơ chế 'Create-All' ánh xạ SQLAlchemy Metadata sang Object-Relational Model.
+    """
+    logger.info("Chạy bộ nạp khởi động (Bootstrap). Cấu hình di trú Schema Model vào DB...")
+    try:
+        async with engine.begin() as conn:
+            # Uỷ thác Asyncio thực phi thao tác synchronous (Tạo Schema)
+            await conn.run_sync(models.Base.metadata.create_all)
+        logger.info("Hoàn tất việc kết xuất các Table thực thể (Stations, RoadSegments) trên máy chủ DB.")
+    except Exception as e:
+        logger.error(f"Xảy ra lỗi can thiệp tạo kiến trúc CSDL: {str(e)}")
+    
+    yield  # Uỷ thác quyền điều khiển lại API Routing
+    
+    # Bước đóng hệ thống an toàn ở điểm Outbound
+    logger.info("Máy chủ chuẩn bị dừng các dịch vụ. Dọn dẹp Database connections...")
+    await engine.dispose()
+
+# Giao diện lập trình gốc FastAPI ứng với Lifecycle Async Context Manager
 app = FastAPI(
     title="24H-GNN Traffic Prediction API",
     description="Hệ thống API RESTful phục vụ kiến trúc dự báo giao thông đô thị dựa trên Graph Neural Networks (GNN).",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-# Cấu hình chính sách CORS (Cross-Origin Resource Sharing)
-# Ở môi trường Dev, cho phép Frontend React (localhost:3000) gọi API mà không bị chặn
+# Cấp quyền CORS để frontend localhost truy cập an toàn
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -43,10 +67,6 @@ app.add_middleware(
 async def ping():
     """
     Endpoint kiểm tra trạng thái sức khoẻ máy chủ (Health Check).
-    Đóng vai trò xác minh Backend đang hoạt động và đáp ứng request.
-    
-    Returns:
-        dict: Phản hồi bao gồm trạng thái phân tích 'ok' và lời chào.
     """
     logger.info("Nhận lưu lượng kiểm tra sức khỏe hệ thống từ GET /ping.")
     try:
@@ -58,17 +78,10 @@ async def ping():
 @app.get("/test-db")
 async def test_db_connection(db: AsyncSession = Depends(get_db)):
     """
-    Endpoint thử nghiệm kết nối CSDL PostgreSQL bằng cách triệu xuất một truy vấn tĩnh nhẹ nhàng.
-    
-    Args:
-        db (AsyncSession): Phiên giao dịch CSDL tiêm vào qua dependency injection.
-        
-    Returns:
-        dict: Mã trạng thái, thông điệp phân giải và phiên bản engine.
+    Endpoint thử nghiệm kết nối CSDL PostgreSQL tại lớp Async.
     """
-    logger.info("Hệ thống khởi chạy quy trình kiểm tra Database qua GET /test-db.")
+    logger.info("Khởi chạy quy trình xác nhận DB bằng GET /test-db.")
     try:
-        # Thực thi truy vấn cơ sở nhằm xác minh trạng thái đường truyền
         result = await db.execute(text("SELECT version();"))
         db_version = result.scalar()
         
@@ -80,5 +93,4 @@ async def test_db_connection(db: AsyncSession = Depends(get_db)):
         }
     except Exception as e:
         logger.error(f"Đường truyền Database trục trặc trong quá trình vận hành ping: {str(e)}")
-        # Cần raise HTTP exception thay đổi luồng thực thi (không được fail silently)
         raise HTTPException(status_code=500, detail=f"Không thể thiết lập kết nối Database: {str(e)}")
