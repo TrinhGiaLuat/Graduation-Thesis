@@ -16,3 +16,12 @@ env/
 Thumbs.db
 .agents/
 database/postgres_data/
+.vscode/
+
+# AI Core data & checkpoints
+ai_core/data/
+ai_core/checkpoints/
+*.zip
+*.pt
+*.pkl
+*.npz

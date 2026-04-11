@@ -49,6 +49,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Đăng ký các phân hệ (Routers) vào ứng dụng API chính
+from routers.traffic import router as traffic_router
+app.include_router(traffic_router)
+
 # Cấp quyền CORS để frontend localhost truy cập an toàn
 origins = [
     "http://localhost:3000",
