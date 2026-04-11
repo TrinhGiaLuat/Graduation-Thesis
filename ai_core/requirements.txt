@@ -2,3 +2,6 @@ torch
 torch_geometric
 pandas
 numpy
+h5py
+scipy
+scikit-learn
