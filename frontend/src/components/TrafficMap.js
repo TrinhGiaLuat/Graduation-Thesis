@@ -18,8 +18,8 @@ const TrafficMap = () => {
   const [trafficData, setTrafficData] = useState({});
   const [loadingTraffic, setLoadingTraffic] = useState(false);
   
-  // Trọng tâm khu vực nội thành Hà Nội mặc định
-  const hanoiCenter = [21.0285, 105.8048];
+  // Trọng tâm quy chiếu khu vực Los Angeles (Mô hình METR-LA)
+  const laCenter = [34.0522, -118.2437];
 
   useEffect(() => {
     // Tải song song danh sách trạm (Node) và mạng lưới đường liên kết (Edge)
@@ -40,25 +40,51 @@ const TrafficMap = () => {
 
   // Hàm xử lý Click Marker: Kéo dữ liệu API Time-series theo Station ID
   const handleMarkerClick = async (stationId) => {
-    // Tối ưu hoá: Thu hồi lưu lượng Cache nếu đã call rồi
-    if (trafficData[stationId]) return; 
-    
+    if (trafficData[stationId]) return;
     setLoadingTraffic(true);
     try {
       const response = await axios.get(`/api/traffic/${stationId}`);
-      // Chuẩn hoá Timestamp (chỉ trích xuất số nguyên giờ) để hiển thị mượt trên LineChart
-      const formattedData = response.data.map(record => {
-        const date = new Date(record.timestamp);
-        return {
-          ...record,
-          timeLabel: `${date.getHours()}h`
-        };
-      });
-      
-      setTrafficData(prev => ({
-        ...prev,
-        [stationId]: formattedData
-      }));
+      const rawData = response.data; // 24 phần tử: 12 lịch sử + 12 dự báo
+
+      /**
+       * Xây dựng mảng 25 điểm liên tục ghép 2 đường liền mạch:
+       * - Điểm 0 -> 11: Lịch sử (-55p đến -5p dùng field `history`)
+       * - Điểm 12 (HIỆN TẠI): Cả `history` và `forecast` đều có giá trị → 2 đường nối nhau
+       * - Điểm 13 -> 24: Dự báo (+5p đến +60p dùng field `forecast`)
+       */
+      const historyPoints = rawData.filter(r => !r.is_prediction);  // 12 điểm
+      const forecastPoints = rawData.filter(r => r.is_prediction);   // 12 điểm
+
+      // Giá trị tại điểm giao (HIỆN TẠI): lấy avg_speed của điểm cuối lịch sử
+      const bridgeValue = historyPoints.length > 0
+        ? historyPoints[historyPoints.length - 1].avg_speed
+        : null;
+
+      const chartData = [
+        // 11 điểm lịch sử đầu tiên (-55p đến -5p)
+        ...historyPoints.slice(0, -1).map((r, i) => ({
+          label: `-${(12 - 1 - i) * 5}p`,
+          history: r.avg_speed,
+          forecast: null,
+          is_prediction: false,
+        })),
+        // Điểm giao HIỆN TẠI: cả 2 giá trị đều có → 2 đường nối liền mạch
+        {
+          label: 'HIỆN TẠI',
+          history: bridgeValue,
+          forecast: bridgeValue,
+          is_prediction: false,
+        },
+        // 12 điểm dự báo (+5p đến +60p)
+        ...forecastPoints.map((r, i) => ({
+          label: `+${(i + 1) * 5}p`,
+          history: null,
+          forecast: r.avg_speed,
+          is_prediction: true,
+        })),
+      ];
+
+      setTrafficData(prev => ({ ...prev, [stationId]: chartData }));
     } catch (error) {
       console.error(`Lỗi tải dữ liệu cho trạm ${stationId}:`, error);
     } finally {
@@ -95,8 +121,8 @@ const TrafficMap = () => {
 
   return (
     <MapContainer 
-      center={hanoiCenter} 
-      zoom={14} 
+      center={laCenter} 
+      zoom={11} 
       style={{ height: '100%', width: '100%' }}
     >
       <TileLayer
@@ -129,28 +155,93 @@ const TrafficMap = () => {
               ) : trafficData[station.id] ? (
                 <div style={{ width: '100%', height: 220, marginTop: '10px' }}>
                   <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 'bold', color: '#4b5563' }}>
-                    📈 Lưu lượng 24h qua (xe/giờ)
+                    📈 Tốc độ giao thông 24h (mph)
+                    <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 'normal', color: '#9ca3af' }}>
+                      (12h lịch sử + 12h dự báo GNN)
+                    </span>
                   </p>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trafficData[station.id]}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                      <XAxis dataKey="timeLabel" fontSize={10} tickMargin={5} stroke="#6b7280" />
-                      <YAxis fontSize={10} width={35} stroke="#6b7280" />
-                      <RechartsTooltip 
-                        contentStyle={{ fontSize: '11px', borderRadius: '4px', border: '1px solid #e5e7eb' }}
-                        labelStyle={{ fontWeight: 'bold', color: '#374151' }}
+
+                      {/* Trục X: Nhãn thời gian tương đối -55p → HIỆN TẠI → +60p */}
+                      <XAxis
+                        dataKey="label"
+                        fontSize={9}
+                        tickMargin={4}
+                        stroke="#6b7280"
+                        interval={0}
+                        tick={({ x, y, payload }) => {
+                          const isCurrent = payload.value === 'HIỆN TẠI';
+                          return (
+                            <text
+                              key={`tick-${payload.value}-${x}`}
+                              x={x} y={y + 10}
+                              textAnchor="middle"
+                              fontSize={isCurrent ? 9 : 8}
+                              fontWeight={isCurrent ? 'bold' : 'normal'}
+                              fill={isCurrent ? '#ef4444' : '#6b7280'}
+                            >
+                              {isCurrent ? '▼' : payload.value}
+                            </text>
+                          );
+                        }}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey="volume" 
-                        stroke="#f97316" 
-                        strokeWidth={3}
-                        dot={{ r: 2, fill: '#f97316', strokeWidth: 0 }} 
-                        activeDot={{ r: 5, strokeWidth: 0 }} 
-                        name="Lưu thông (Xe)"
+
+                      <YAxis
+                        fontSize={10}
+                        width={38}
+                        stroke="#6b7280"
+                        domain={[0, 80]}
+                        label={{ value: 'mph', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 9, fill: '#9ca3af' } }}
+                      />
+
+                      {/* Custom Tooltip phân biệt Lịch sử / Dự báo */}
+                      <RechartsTooltip
+                        contentStyle={{ fontSize: '11px', borderRadius: '6px', border: '1px solid #e5e7eb', background: '#fff' }}
+                        labelStyle={{ fontWeight: 'bold', color: '#374151', marginBottom: '4px' }}
+                        formatter={(value, name, props) => {
+                          if (value === null || value === undefined) return null;
+                          const label = props.payload?.label || '';
+                          const isPred = props.payload?.is_prediction;
+                          const prefix = isPred ? `Dự báo GNN (${label})` : `Lịch sử (${label})`;
+                          return [`${Number(value).toFixed(1)} mph`, prefix];
+                        }}
+                      />
+
+                      {/* Đường Lịch sử - xanh dương, nét liền */}
+                      <Line
+                        type="monotone"
+                        dataKey="history"
+                        stroke="#3b82f6"
+                        strokeWidth={2.5}
+                        dot={(props) => {
+                          if (props.payload?.label === 'HIỆN TẠI') return null;
+                          return <circle key={`dot-hist-${props.index}`} cx={props.cx} cy={props.cy} r={2} fill="#3b82f6" strokeWidth={0} />;
+                        }}
+                        activeDot={{ r: 5, strokeWidth: 0 }}
+                        name="Lịch sử"
+                        connectNulls={false}
+                      />
+
+                      {/* Đường Dự báo GNN - cam, nét đứt */}
+                      <Line
+                        type="monotone"
+                        dataKey="forecast"
+                        stroke="#f97316"
+                        strokeWidth={2.5}
+                        strokeDasharray="5 3"
+                        dot={(props) => {
+                          if (props.payload?.label === 'HIỆN TẠI') return null;
+                          return <circle key={`dot-pred-${props.index}`} cx={props.cx} cy={props.cy} r={2} fill="#f97316" strokeWidth={0} />;
+                        }}
+                        activeDot={{ r: 5, strokeWidth: 0 }}
+                        name="Dự báo GNN"
+                        connectNulls={false}
                       />
                     </LineChart>
                   </ResponsiveContainer>
+
                 </div>
               ) : (
                 <p style={{ fontSize: '12px', color: '#9ca3af' }}>Hệ thống không thu thập được dữ liệu 24h.</p>
