@@ -21,10 +21,13 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./ai_core:/ai_core
     depends_on:
       - db
     env_file:
       - .env
+    environment:
+      POSTGRES_HOST: db
 
   frontend:
     build:

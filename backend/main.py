@@ -27,13 +27,21 @@ async def lifespan(app: FastAPI):
     Tiến hành cơ chế 'Create-All' ánh xạ SQLAlchemy Metadata sang Object-Relational Model.
     """
     logger.info("Chạy bộ nạp khởi động (Bootstrap). Cấu hình di trú Schema Model vào DB...")
-    try:
-        async with engine.begin() as conn:
-            # Uỷ thác Asyncio thực phi thao tác synchronous (Tạo Schema)
-            await conn.run_sync(models.Base.metadata.create_all)
-        logger.info("Hoàn tất việc kết xuất các Table thực thể (Stations, RoadSegments) trên máy chủ DB.")
-    except Exception as e:
-        logger.error(f"Xảy ra lỗi can thiệp tạo kiến trúc CSDL: {str(e)}")
+    import asyncio
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            async with engine.begin() as conn:
+                # Uỷ thác Asyncio thực phi thao tác synchronous (Tạo Schema)
+                await conn.run_sync(models.Base.metadata.create_all)
+            logger.info("Hoàn tất việc kết xuất các Table thực thể (Stations, RoadSegments) trên máy chủ DB.")
+            break # Thoát vòng lặp nếu thành công
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Database đang khởi động... Thử lại sau 3 giây (Lần {attempt + 1}/{max_retries})")
+                await asyncio.sleep(3)
+            else:
+                logger.error(f"Xảy ra lỗi can thiệp tạo kiến trúc CSDL: {str(e)}")
     
     yield  # Uỷ thác quyền điều khiển lại API Routing
     

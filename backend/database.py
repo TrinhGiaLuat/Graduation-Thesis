@@ -21,8 +21,8 @@ load_dotenv()
 POSTGRES_USER = os.getenv("POSTGRES_USER", "admin")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "adminsecret")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "traffic_db")
-# Trong ngữ cảnh Docker Compose, host là tên service 'db'
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "db")
+# Mặc định localhost để Windows/Local kết nối được port 5432. Docker sẽ Override lại bằng biến môi trường.
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 
 # Chuỗi kết nối Database theo chuẩn asyncpg
