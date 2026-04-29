@@ -29,8 +29,9 @@ ai_core/checkpoints/
 *.jpg
 *.jpeg
 
-# Documentation & Logs
+# Documentation & Logs (chỉ giữ README.md, bỏ qua các .md khác)
 *.md
+!README.md
 backend/logs/
 simulation_logs.csv
 .ipynb_checkpoints/
