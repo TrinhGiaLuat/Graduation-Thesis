@@ -16,6 +16,10 @@ from database import get_db, engine
 # Import các Models nhằm đăng ký ORM Declarative Entity metadata vào luồng kiểm tra
 import models
 
+# Import các phân hệ (Routers)
+from routers.traffic import router as traffic_router
+from routers.reports import router as reports_router
+
 # Cấu hình kiến trúc ghi log nhật ký hệ thống
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("api_main")
@@ -51,15 +55,15 @@ async def lifespan(app: FastAPI):
 
 # Giao diện lập trình gốc FastAPI ứng với Lifecycle Async Context Manager
 app = FastAPI(
-    title="24H-GNN Traffic Prediction API",
+    title="Traffic Prediction API",
     description="Hệ thống API RESTful phục vụ kiến trúc dự báo giao thông đô thị dựa trên Graph Neural Networks (GNN).",
     version="1.0.0",
     lifespan=lifespan
 )
 
 # Đăng ký các phân hệ (Routers) vào ứng dụng API chính
-from routers.traffic import router as traffic_router
 app.include_router(traffic_router)
+app.include_router(reports_router, prefix="/api")
 
 # Cấp quyền CORS để frontend localhost truy cập an toàn
 origins = [

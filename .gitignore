@@ -25,3 +25,12 @@ ai_core/checkpoints/
 *.pt
 *.pkl
 *.npz
+*.png
+*.jpg
+*.jpeg
+
+# Documentation & Logs
+*.md
+backend/logs/
+simulation_logs.csv
+.ipynb_checkpoints/

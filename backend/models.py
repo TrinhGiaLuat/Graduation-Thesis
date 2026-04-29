@@ -59,3 +59,21 @@ class TrafficRecord(Base):
 
     # Tham chiếu gián tiếp đến Metadata cửa Station
     station = relationship("Station", back_populates="records")
+
+class PredictionLog(Base):
+    """
+    Lưu trữ lịch sử dự báo khi chạy Live Simulation.
+    Phục vụ cho trang Báo cáo Thống kê (Historical Analytics).
+    """
+    __tablename__ = "prediction_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    station_id = Column(Integer, ForeignKey("stations.id", ondelete="CASCADE"), nullable=False, index=True)
+    virtual_time = Column(String, index=True, nullable=False, doc="Giờ giả lập (VD: 08:00)")
+    timestep = Column(Integer, index=True, nullable=False, doc="Bước thời gian trong giả lập")
+    horizon = Column(Integer, nullable=False, doc="Tầm nhìn dự báo (VD: 3, 6, 12)")
+    predicted_flow = Column(Float, nullable=False, doc="Lưu lượng dự báo")
+    created_at = Column(DateTime, nullable=False, doc="Thời gian thực khi sinh ra log")
+    
+    # Quan hệ với Station (chỉ đọc một chiều từ PredictionLog -> Station)
+    station = relationship("Station")
