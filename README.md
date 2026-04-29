@@ -244,7 +244,7 @@ ai_core/
 docker-compose up -d --build
 ```
 
-Lần đầu build sẽ mất khoảng **3–5 phút** để cài đặt các thư viện. Các lần tiếp theo chỉ mất **~30 giây**.
+Lần đầu build sẽ mất khoảng **15–20 phút** để cài đặt các thư viện. Các lần tiếp theo chỉ mất **~30 giây**.
 
 ### Bước 4 — Nạp dữ liệu trạm vào Database *(Chỉ lần đầu)*
 
@@ -262,8 +262,8 @@ docker exec -it 24h_gnn_backend python seed_pems04.py
 
 **Tài khoản đăng nhập mặc định:**
 ```
-Username: admin
-Password: admin123
+Username: Trinhgialuat
+Password: Trinhgialuat123@
 ```
 
 ### Dừng hệ thống
