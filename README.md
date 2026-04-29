@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🚦 24H-GNN — Hệ Thống Dự Báo Lưu Lượng Giao Thông Thông Minh
+#  Xây Dựng Ứng Dụng Web Dự Báo Lưu Lượng Giao Thông Đô Thị Sử Dụng Mạng Nơ-ron Đồ Thị (GNN)
 
-**Ứng dụng Graph Neural Network (GNN) dự báo lưu lượng giao thông đô thị theo thời gian thực**
+**Ứng dụng Graph Neural Network (GNN) dự báo lưu lượng giao thông đô thị**
 
 [![Python](https://img.shields.io/badge/Python-3.10-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -37,7 +37,7 @@
 
 ## 🎯 Giới Thiệu Dự Án
 
-**24H-GNN** là một hệ thống giám sát và dự báo lưu lượng giao thông đô thị thông minh, được phát triển như một sản phẩm hoàn chỉnh từ tầng AI cho đến giao diện người dùng.
+**Ứng Dụng Web** là một hệ thống giám sát và dự báo lưu lượng giao thông đô thị thông minh, được phát triển như một sản phẩm hoàn chỉnh từ tầng AI cho đến giao diện người dùng.
 
 ### Bài toán đặt ra
 
@@ -46,7 +46,7 @@
 ### Giải pháp đề xuất
 
 Ứng dụng mô hình học sâu trên đồ thị (**Graph WaveNet**) để:
-- Học đồng thời **mối quan hệ không gian** giữa 307 nút giao thông (ai ảnh hưởng đến ai)
+- Học đồng thời **mối quan hệ không gian** giữa các nút giao thông (ai ảnh hưởng đến ai)
 - Nhận diện **quy luật thời gian** theo chu kỳ (giờ cao điểm sáng / chiều)
 - Dự báo lưu lượng trong **3 tầm nhìn song song**: +15 phút, +30 phút, +60 phút
 
@@ -241,7 +241,7 @@ ai_core/
 ### Bước 3 — Khởi chạy toàn hệ thống
 
 ```bash
-docker-compose up --build
+docker-compose up -d --build
 ```
 
 Lần đầu build sẽ mất khoảng **3–5 phút** để cài đặt các thư viện. Các lần tiếp theo chỉ mất **~30 giây**.
